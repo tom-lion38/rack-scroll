@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rack au défilement, démo</title>
+  <meta name="description" content="Un rack serveur qui se monte pièce par pièce pendant qu'on fait défiler la page. Démo sans dépendance.">
+  <script>
+    /* Avant le premier affichage : choisit le mode d'animation pour éviter un saut de mise en page.
+       Ordre : paramètre ?motion=, choix enregistré, puis préférence du système. */
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var m = q.get("motion");
+      var mode = matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduced" : "full";
+      try {
+        var saved = localStorage.getItem("rack-motion");
+        if (saved === "full" || saved === "reduced") mode = saved;
+      } catch (e) {}
+      if (m === "full" || m === "reduced") mode = m;
+      if (q.has("p")) { mode = "full"; document.documentElement.classList.add("force"); }
+      document.documentElement.setAttribute("data-motion", mode);
+    })();
+  </script>
+  <link rel="stylesheet" href="rack.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <p class="eyebrow">Démo</p>
+      <h1>Un rack qui se monte quand on fait défiler la page</h1>
+      <p>Descends doucement : le châssis se dessine, les équipements glissent un par un dans le rack, les câbles se posent, puis tous les voyants passent au vert. Remonte, et tout se démonte.</p>
+      <p>C'est la reprise sans bibliothèque de l'animation de la page d'accueil de tlnetwork.fr.</p>
+      <button type="button" class="toggle" id="reglage-animations" aria-pressed="true">Animations : activées</button>
+    </header>
+
+    <section class="rack" id="rack" aria-labelledby="rack-titre">
+      <a class="rack-skip" href="#rack-fin">Passer l'assemblage du rack</a>
+
+      <div class="rack-layout">
+        <div class="rack-intro">
+          <p class="eyebrow">Le principe</p>
+          <h2 id="rack-titre">Chaque cran de molette fait avancer le montage.</h2>
+          <p class="lead">La scène reste collée à l'écran pendant que la page défile. La position du défilement devient une progression entre 0 et 1, et chaque élément du rack a sa fenêtre dans cette progression.</p>
+        </div>
+
+        <div class="rack-track" aria-hidden="true"></div>
+
+        <div class="rack-frame">
+          <figure class="rack-stage">
+            <div class="rack-scene" aria-hidden="true">
+              <span class="rack-corners"><i></i><i></i><i></i><i></i></span>
+              <canvas class="rack-canvas"></canvas>
+              <div class="rack-dims">
+                <span class="rack-dim"><span>600 mm</span></span>
+                <span class="rack-dim"><span>600 mm</span></span>
+                <span class="rack-dim rack-dim-v"><span>10 U</span></span>
+              </div>
+            </div>
+
+            <div class="rack-hud">
+              <p class="rack-hud-text" aria-hidden="true">
+                <span class="rack-hud-plan">Plan · rack 10 U</span>
+                <span class="rack-hud-phase">
+                  <span class="rack-hud-still">Rack assemblé</span>
+                  <span class="rack-hud-live">Châssis et rails</span>
+                  <span class="rack-hud-pct">0 %</span>
+                </span>
+              </p>
+              <button type="button" class="rack-control" hidden>Pause</button>
+            </div>
+
+            <figcaption class="rack-caption">
+              <p class="rack-final" aria-hidden="true">
+                <span class="rack-final-dot"></span>
+                Tout est vert
+                <span class="rack-final-meta">5/5 en ligne</span>
+              </p>
+              <p class="rack-note"><span class="rack-note-mark" aria-hidden="true">i</span>Matériel fictif, rien ne vient d'une vraie installation.</p>
+              <span class="sr-only">Illustration : un rack de 10 U se monte pièce par pièce. Le châssis et les rails se tracent, puis le pare-feu, le switch, l'hyperviseur, le stockage et l'onduleur glissent à leur place ; les câbles se tirent et tous les voyants passent au vert.</span>
+            </figcaption>
+          </figure>
+
+          <div class="rack-steps">
+            <div class="rack-ticks" aria-hidden="true"></div>
+            <ol class="rack-list" aria-label="Étapes de l'assemblage">
+              <li class="rack-step" data-kind="firewall" data-units="1">
+                <span class="rack-step-num" aria-hidden="true">01</span>
+                <div class="rack-step-body">
+                  <h3 class="rack-step-title">Pare-feu et routeur</h3>
+                  <p class="rack-step-line">Filtre tout ce qui entre, journalise ce qui sort.</p>
+                </div>
+                <span class="rack-step-u">1 U</span>
+                <span class="rack-step-bar" aria-hidden="true"></span>
+              </li>
+              <li class="rack-step" data-kind="switch" data-units="1">
+                <span class="rack-step-num" aria-hidden="true">02</span>
+                <div class="rack-step-body">
+                  <h3 class="rack-step-title">Switch administrable</h3>
+                  <p class="rack-step-line">Un port par machine, des VLAN pour séparer les usages.</p>
+                </div>
+                <span class="rack-step-u">1 U</span>
+                <span class="rack-step-bar" aria-hidden="true"></span>
+              </li>
+              <li class="rack-step" data-kind="hypervisor" data-units="2">
+                <span class="rack-step-num" aria-hidden="true">03</span>
+                <div class="rack-step-body">
+                  <h3 class="rack-step-title">Hyperviseur</h3>
+                  <p class="rack-step-line">Fait tourner les machines virtuelles et les conteneurs sur un seul hôte.</p>
+                </div>
+                <span class="rack-step-u">2 U</span>
+                <span class="rack-step-bar" aria-hidden="true"></span>
+              </li>
+              <li class="rack-step" data-kind="storage" data-units="2">
+                <span class="rack-step-num" aria-hidden="true">04</span>
+                <div class="rack-step-body">
+                  <h3 class="rack-step-title">Stockage ZFS</h3>
+                  <p class="rack-step-line">Quatre disques, des sommes de contrôle et un instantané chaque nuit.</p>
+                </div>
+                <span class="rack-step-u">2 U</span>
+                <span class="rack-step-bar" aria-hidden="true"></span>
+              </li>
+              <li class="rack-step" data-kind="ups" data-units="2">
+                <span class="rack-step-num" aria-hidden="true">05</span>
+                <div class="rack-step-body">
+                  <h3 class="rack-step-title">Onduleur</h3>
+                  <p class="rack-step-line">Encaisse les microcoupures et lance un arrêt propre si elles durent.</p>
+                </div>
+                <span class="rack-step-u">2 U</span>
+                <span class="rack-step-bar" aria-hidden="true"></span>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <p class="sr-only" aria-live="polite" id="rack-annonce"></p>
+      <span id="rack-fin" tabindex="-1" class="rack-end"></span>
+    </section>
+
+    <section class="page-end">
+      <h2>Et après ?</h2>
+      <p>Le rack reste assemblé tant que tu restes en dessous. Le README du dépôt explique chaque morceau : la piste de défilement, le calcul de la progression, la chronologie, le rendu et la gestion des animations réduites.</p>
+    </section>
+  </main>
+
+  <script src="rack.js"></script>
+</body>
+</html>

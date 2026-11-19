@@ -1,0 +1,77 @@
+/* Variables utilisées par rack-scroll.module.css et lues par la scène 3D.
+   Ce sont des valeurs de départ : adapte-les à ton thème. Thème sombre par défaut,
+   thème clair avec <html data-theme="light">. */
+
+:root {
+  --bg: #04050a;
+  --surface: #0b0f1a;
+  --surface-top: #121828;
+  --ink-400: #232c42;
+  --ink-500: #1a2133;
+  --ink-600: #141a29;
+  --ink-700: #0d111b;
+  --line: rgba(237, 241, 248, 0.09);
+  --line-strong: rgba(237, 241, 248, 0.18);
+  --line-accent: rgba(47, 230, 200, 0.45);
+  --txt-1: #edf1f8;
+  --txt-2: #a6afc4;
+  --txt-3: #7c859c;
+  --accent: #2fe6c8;
+  --accent-glow: rgba(47, 230, 200, 0.55);
+  --ok: #4bd07f;
+  --warn: #ffc44d;
+  --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Hauteur d'un en-tête fixe éventuel : la scène collante se place dessous. */
+  --header-h: 0px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --step--2: 0.8rem;
+  --step--1: 0.9rem;
+  --step-0: 1rem;
+  --step-1: 1.2rem;
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-5: 700ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --shadow-lg: 0 30px 80px -40px rgba(0, 0, 0, 0.85);
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-top: #eef1f7;
+  --line: rgba(13, 17, 27, 0.1);
+  --line-strong: rgba(13, 17, 27, 0.2);
+  --line-accent: rgba(0, 150, 130, 0.45);
+  --txt-1: #0d111b;
+  --txt-2: #3d465c;
+  --txt-3: #5c6680;
+  --accent: #0aa892;
+  --accent-glow: rgba(10, 168, 146, 0.45);
+  --ok: #1f9d55;
+  --warn: #c98a00;
+  --shadow-lg: 0 30px 80px -40px rgba(13, 17, 27, 0.35);
+}
+
+/* Texte réservé aux lecteurs d'écran, utilisé par le composant. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

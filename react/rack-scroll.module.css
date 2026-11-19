@@ -1,0 +1,1069 @@
+/* Rack serveur qui s'assemble au défilement.
+   Par défaut (animations réduites, sans JavaScript, sans WebGL) : présentation
+   statique. La zone collante n'existe qu'avec :root[data-motion="full"] + .scroll. */
+
+.root {
+  --frame: calc(100svh - var(--header-h));
+  --stage-max: 880px;
+  --k: 0;
+  --t-ok: color-mix(in srgb, var(--ok) 62%, var(--txt-1));
+  --t-accent: color-mix(in srgb, var(--accent) 78%, var(--txt-1));
+  /* Teintes du matériel (SVG de repli ; la 3D lit les mêmes jetons). */
+  --hw-face: color-mix(in srgb, var(--surface-top) 72%, var(--bg));
+  --hw-top: color-mix(in srgb, var(--surface-top) 84%, var(--txt-1));
+  --hw-side: color-mix(in srgb, var(--surface-top) 38%, var(--bg));
+  --hw-edge: var(--accent);
+
+  container: rack / inline-size;
+  position: relative;
+  color: var(--txt-1);
+}
+
+@media (prefers-color-scheme: light) {
+  :global(:root:not([data-theme="dark"])) .root {
+    /* --ok n'est pas assombri en thème clair : texte vert à au moins 4,5:1. */
+    --t-ok: color-mix(in srgb, var(--ok) 50%, var(--txt-1));
+    --hw-face: color-mix(in srgb, var(--ink-600) 70%, var(--ink-500));
+    --hw-top: var(--ink-400);
+    --hw-side: var(--ink-700);
+    --hw-edge: color-mix(in srgb, var(--accent) 70%, #fff);
+  }
+}
+
+:global([data-theme="light"]) .root {
+  --t-ok: color-mix(in srgb, var(--ok) 50%, var(--txt-1));
+  --hw-face: color-mix(in srgb, var(--ink-600) 70%, var(--ink-500));
+  --hw-top: var(--ink-400);
+  --hw-side: var(--ink-700);
+  --hw-edge: color-mix(in srgb, var(--accent) 70%, #fff);
+}
+
+/* =========================================================================
+   Mise en page statique (base)
+   ========================================================================= */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "intro"
+    "stage"
+    "steps";
+  gap: var(--sp-6);
+}
+
+.intro {
+  grid-area: intro;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.track {
+  display: none;
+}
+
+.frame {
+  display: contents;
+}
+
+@container rack (min-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "intro stage"
+      "steps stage";
+    column-gap: clamp(32px, 5cqi, 80px);
+    row-gap: var(--sp-6);
+    align-items: start;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-top);
+  color: var(--txt-1);
+  font-size: var(--step--1);
+  font-weight: 560;
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 -8px;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    translate var(--dur-2) var(--ease-out);
+}
+
+.skip:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  translate: 0 0;
+}
+
+.end {
+  display: block;
+  height: 0;
+  outline: none;
+}
+
+/* =========================================================================
+   Scène (figure)
+   ========================================================================= */
+
+.stage {
+  grid-area: stage;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  margin: 0;
+  padding: 16px 18px 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(70% 55% at 50% 48%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 72%),
+    radial-gradient(color-mix(in srgb, var(--txt-1) 7%, transparent) 1px, transparent 1.3px) 0 0 / 24px 24px,
+    color-mix(in srgb, var(--surface) 72%, var(--bg));
+  box-shadow: var(--shadow-lg);
+}
+
+/* Présentation statique sur deux colonnes : un en-tête haut (children) allonge la
+   colonne de gauche ; le dessin reste en vue pendant la lecture des légendes au
+   lieu de laisser un grand vide à droite. Simple position collante, aucun
+   mouvement ; seulement si la figure tient dans l'écran. (Après .stage : même
+   spécificité, l'ordre décide.) */
+@container rack (min-width: 860px) {
+  @media (min-height: 760px) {
+    .stage {
+      position: sticky;
+      top: calc(var(--header-h) + 24px);
+    }
+  }
+}
+
+.scene {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.corners {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.corners i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-style: solid;
+  border-width: 0;
+}
+
+.corners i:nth-child(1) { left: -6px; top: -4px; border-left-width: 1px; border-top-width: 1px; }
+.corners i:nth-child(2) { right: -6px; top: -4px; border-right-width: 1px; border-top-width: 1px; }
+.corners i:nth-child(3) { left: -6px; bottom: -4px; border-left-width: 1px; border-bottom-width: 1px; }
+.corners i:nth-child(4) { right: -6px; bottom: -4px; border-right-width: 1px; border-bottom-width: 1px; }
+
+.canvas {
+  display: none;
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(64vh, 620px);
+  margin-inline: auto;
+}
+
+.dims {
+  display: none;
+}
+
+/* ---------- Dessin SVG ---------- */
+
+.artGrid {
+  fill: none;
+  stroke: var(--txt-3);
+  stroke-opacity: 0.22;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artShadowIn {
+  stop-color: #000;
+  stop-opacity: 0.45;
+}
+
+.artShadowOut {
+  stop-color: #000;
+  stop-opacity: 0;
+}
+
+.artDim {
+  fill: none;
+  stroke: var(--txt-3);
+  stroke-opacity: 0.75;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artDimText {
+  fill: var(--txt-2);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+/* Le dessin rétrécit avec son conteneur : les cotes grossissent en unités SVG
+   pour rester lisibles (environ 10 px à l'écran) sur téléphone. */
+@container rack (max-width: 620px) {
+  .artDimText {
+    font-size: 11px;
+  }
+}
+
+@container rack (max-width: 440px) {
+  .artDimText {
+    font-size: 14px;
+  }
+}
+
+.artBack {
+  fill: none;
+  stroke: var(--txt-3);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artRail {
+  fill: none;
+  stroke: var(--txt-3);
+  stroke-opacity: 0.55;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artFrame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--txt-2) 80%, var(--accent));
+  stroke-opacity: 0.85;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artSide,
+.artTop,
+.artFace {
+  stroke: color-mix(in srgb, var(--hw-edge) 70%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.artSide { fill: var(--hw-side); stroke-opacity: 0.55; }
+.artTop { fill: var(--hw-top); stroke-opacity: 0.55; }
+.artFace { fill: var(--hw-face); }
+
+.artDetail {
+  fill: none;
+  stroke: var(--hw-edge);
+  stroke-opacity: 0.55;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.artLed,
+.artLedGlow {
+  fill: none;
+  stroke: var(--ok);
+  stroke-linecap: round;
+}
+
+.artLed { stroke-width: 3; }
+.artLedGlow { stroke-width: 8; stroke-opacity: 0.22; }
+
+.artCable {
+  fill: none;
+  stroke: var(--hw-edge);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Surcouches HTML ---------- */
+
+.hud {
+  order: -1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.hudText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+
+.hudPhase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  color: var(--txt-1);
+  letter-spacing: 0.08em;
+}
+
+.hudPct,
+.hudLive {
+  display: none;
+}
+
+.hudPct {
+  color: var(--t-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.control {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 14px 7px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--txt-1);
+  font-size: var(--step--2);
+  font-weight: 560;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+
+.control svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.control:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.control:active {
+  transform: scale(0.97);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-pill);
+}
+
+.caption {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.final {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px 8px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 11%, color-mix(in srgb, var(--surface) 86%, transparent));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px -22px var(--ok);
+  font-size: var(--step--1);
+  font-weight: 620;
+  line-height: 1.2;
+  color: var(--txt-1);
+  white-space: nowrap;
+}
+
+.finalDot {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ok) 70%, transparent);
+}
+
+.finalDot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ok);
+  opacity: 0;
+}
+
+.finalMeta {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--t-ok);
+}
+
+.note {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  padding: 6px 14px 6px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: var(--step--2);
+  line-height: 1.4;
+  color: var(--txt-2);
+}
+
+.noteMark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--txt-3);
+}
+
+@container rack (max-width: 520px) {
+  .note {
+    border-radius: var(--radius-md);
+    text-align: left;
+  }
+}
+
+/* =========================================================================
+   Légendes
+   ========================================================================= */
+
+.steps {
+  grid-area: steps;
+  min-width: 0;
+}
+
+.ticks {
+  display: none;
+}
+
+.list {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 2px;
+}
+
+.list::before {
+  content: "";
+  position: absolute;
+  left: 15.5px;
+  top: 30px;
+  bottom: 30px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: start;
+  padding: 14px 14px 18px 0;
+}
+
+.step::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 -12px;
+  z-index: -1;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 80%);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+
+.stepNum {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--txt-3);
+  transition:
+    border-color var(--dur-3) var(--ease-out),
+    color var(--dur-3) var(--ease-out),
+    background var(--dur-3) var(--ease-out),
+    box-shadow var(--dur-3) var(--ease-out);
+}
+
+.stepBody {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.stepTitle {
+  font-size: var(--step-1);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  color: var(--txt-2);
+  transition: color var(--dur-3) var(--ease-out);
+}
+
+.stepLine {
+  margin-top: 6px;
+  max-width: 44ch;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--txt-3);
+  transition: color var(--dur-3) var(--ease-out);
+}
+
+.stepU {
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+
+.stepBar {
+  position: absolute;
+  left: 48px;
+  right: 14px;
+  bottom: 7px;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--line);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+
+.stepBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--k));
+}
+
+.step[data-state="active"]::before,
+.step[data-state="active"] .stepBar {
+  opacity: 1;
+}
+
+.step[data-state="active"] .stepNum {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  color: var(--t-accent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 0 22px -4px var(--accent-glow);
+}
+
+.step[data-state="active"] .stepTitle,
+.step[data-state="done"] .stepTitle {
+  color: var(--txt-1);
+}
+
+.step[data-state="active"] .stepLine {
+  color: var(--txt-2);
+}
+
+.step[data-state="active"] .stepU {
+  border-color: var(--line-accent);
+  color: var(--t-accent);
+}
+
+.step[data-state="done"] .stepNum {
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, var(--bg));
+  color: var(--t-ok);
+}
+
+/* =========================================================================
+   Mode défilement : animations activées (data-motion="full", posé par le script de
+   démarrage avec JavaScript) + WebGL disponible. Sans JavaScript, ou animations
+   réduites, le rack reste dessiné assemblé.
+   ========================================================================= */
+
+/* ---------- Petits écrans : scène en haut, légende active dessous ---------- */
+
+:global(:root[data-motion="full"]) .scroll .layout {
+  grid-template-areas:
+    "intro"
+    "track";
+}
+
+:global(:root[data-motion="full"]) .scroll .track {
+  display: block;
+  grid-area: track;
+  height: 200svh;
+}
+
+:global(:root[data-motion="full"]) .scroll .frame {
+  grid-area: track;
+  align-self: start;
+  position: sticky;
+  top: var(--header-h);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: var(--frame);
+  padding-block: 10px 12px;
+}
+
+:global(:root[data-motion="full"]) .scroll .stage {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  padding: 0;
+}
+
+:global(:root[data-motion="full"]) .scroll .scene {
+  position: absolute;
+  inset: 0;
+}
+
+:global(:root[data-motion="full"]) .scroll .corners {
+  inset: 10px;
+}
+
+:global(:root[data-motion="full"]) .scroll .corners i:nth-child(1) { left: 0; top: 0; }
+:global(:root[data-motion="full"]) .scroll .corners i:nth-child(2) { right: 0; top: 0; }
+:global(:root[data-motion="full"]) .scroll .corners i:nth-child(3) { left: 0; bottom: 0; }
+:global(:root[data-motion="full"]) .scroll .corners i:nth-child(4) { right: 0; bottom: 0; }
+
+:global(:root[data-motion="full"]) .scroll .canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  opacity: 0;
+  transition: opacity var(--dur-5) var(--ease-out);
+}
+
+:global(:root[data-motion="full"]) .scroll[data-status="ready"] .canvas {
+  opacity: 1;
+}
+
+:global(:root[data-motion="full"]) .scroll .art {
+  display: none;
+}
+
+/* Contexte WebGL perdu en cours de route : le dessin statique prend le relais. */
+:global(:root[data-motion="full"]) .scroll[data-status="lost"] .art {
+  display: block;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 64px;
+  bottom: 96px;
+  width: calc(100% - 32px);
+  height: calc(100% - 160px);
+  max-height: none;
+}
+
+:global(:root[data-motion="full"]) .scroll[data-status="ready"] .dims {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+:global(:root[data-motion="full"]) .scroll .hudPct,
+:global(:root[data-motion="full"]) .scroll .hudLive {
+  display: inline;
+}
+
+:global(:root[data-motion="full"]) .scroll .hudStill {
+  display: none;
+}
+
+:global(:root[data-motion="full"]) .scroll .hud {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 14px;
+}
+
+:global(:root[data-motion="full"]) .scroll .caption {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+}
+
+:global(:root[data-motion="full"]) .scroll .final {
+  opacity: 0;
+  transform: translateY(10px) scale(0.94);
+  transition:
+    opacity 520ms var(--ease-out),
+    transform 700ms var(--ease-spring);
+}
+
+:global(:root[data-motion="full"]) .scroll[data-final] .final {
+  opacity: 1;
+  transform: none;
+}
+
+:global(:root[data-motion="full"]) .scroll[data-final] .finalDot::after {
+  animation: ring 2.4s var(--ease-out) infinite;
+}
+
+/* Le bouton Pause fige tout ce qui bouge seul, anneau compris. */
+:global(:root[data-motion="full"]) .scroll[data-paused] .finalDot::after {
+  animation-play-state: paused;
+}
+
+:global(:root[data-motion="full"]) .scroll .steps {
+  flex: none;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+:global(:root[data-motion="full"]) .scroll .ticks {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+:global(:root[data-motion="full"]) .scroll .ticks i {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line-strong);
+  transition: background var(--dur-3) var(--ease-out);
+}
+
+:global(:root[data-motion="full"]) .scroll .ticks i[data-state="done"] {
+  background: color-mix(in srgb, var(--ok) 75%, transparent);
+}
+
+:global(:root[data-motion="full"]) .scroll .ticks i[data-state="active"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--k));
+}
+
+:global(:root[data-motion="full"]) .scroll .list {
+  display: grid;
+  gap: 0;
+}
+
+:global(:root[data-motion="full"]) .scroll .list::before,
+:global(:root[data-motion="full"]) .scroll .step::before,
+:global(:root[data-motion="full"]) .scroll .stepBar {
+  display: none;
+}
+
+:global(:root[data-motion="full"]) .scroll .step {
+  grid-area: 1 / 1;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+/* La légende sortante s'efface vite, l'entrante arrive juste après. */
+:global(:root[data-motion="full"]) .scroll .step[data-shown] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 420ms var(--ease-out) 140ms,
+    transform 560ms var(--ease-out) 140ms;
+}
+
+:global(:root[data-motion="full"]) .scroll .stepNum {
+  width: 28px;
+  height: 28px;
+}
+
+:global(:root[data-motion="full"]) .scroll .stepBody {
+  padding-top: 2px;
+}
+
+:global(:root[data-motion="full"]) .scroll .stepLine {
+  margin-top: 5px;
+}
+
+:global(:root[data-motion="full"]) .scroll .skip {
+  display: block;
+}
+
+/* Téléphone à l'horizontale : scène et légende côte à côte. */
+@media (orientation: landscape) and (max-height: 560px) {
+  :global(:root[data-motion="full"]) .scroll .frame {
+    flex-direction: row;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .stage {
+    flex: 1.25 1 0;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .steps {
+    flex: 1 1 0;
+    align-self: center;
+  }
+}
+
+/* ---------- Grands écrans : légendes à gauche, scène collante à droite ---------- */
+
+@container rack (min-width: 860px) {
+  /* La rangée des légendes garde au moins 200svh de course : un en-tête haut
+     allonge la piste au lieu de raccourcir la phase des équipements (le
+     script attend en plus que la première légende soit à l'écran). */
+  :global(:root[data-motion="full"]) .scroll .layout {
+    grid-template-columns: minmax(0, 0.74fr) minmax(0, 1.26fr);
+    grid-template-rows: auto minmax(200svh, 1fr);
+    grid-template-areas:
+      "intro track"
+      "steps track";
+    row-gap: 0;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .intro {
+    padding-top: 12px;
+    padding-bottom: var(--sp-4);
+  }
+
+  :global(:root[data-motion="full"]) .scroll .track {
+    align-self: stretch;
+    height: auto;
+    min-height: 260svh;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .frame {
+    display: contents;
+  }
+
+  /* Hauteur bornée aussi par la largeur de la colonne (≈ 60cqi) : sur grand
+     écran, la scène reste presque carrée au lieu d'un long portrait vide. */
+  :global(:root[data-motion="full"]) .scroll .stage {
+    --stage-h: min(calc(var(--frame) - 24px), var(--stage-max), 66cqi);
+    grid-area: track;
+    align-self: start;
+    position: sticky;
+    top: calc(var(--header-h) + (var(--frame) - var(--stage-h)) / 2);
+    height: var(--stage-h);
+  }
+
+  :global(:root[data-motion="full"]) .scroll .steps {
+    grid-area: steps;
+    align-self: start;
+    position: sticky;
+    top: var(--header-h);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--frame);
+    padding: 24px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .ticks {
+    display: none;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .list {
+    gap: 2px;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .list::before,
+  :global(:root[data-motion="full"]) .scroll .step::before,
+  :global(:root[data-motion="full"]) .scroll .stepBar {
+    display: block;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .step {
+    grid-area: auto;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 16px;
+    padding: 14px 14px 18px 0;
+    opacity: 1;
+    transform: none;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .stepNum {
+    width: 32px;
+    height: 32px;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .stepBody {
+    padding-top: 3px;
+  }
+
+  :global(:root[data-motion="full"]) .scroll .step[data-state="todo"] .stepTitle {
+    color: var(--txt-3);
+  }
+}
+
+/* Ordinateur peu haut (1366 × 768, 1280 × 720 avec la barre du navigateur) :
+   la colonne collante doit tenir entière dans l'écran, onduleur compris. */
+@container rack (min-width: 860px) {
+  @media (max-height: 760px) {
+    :global(:root[data-motion="full"]) .scroll .steps {
+      padding-block: 8px;
+    }
+
+    :global(:root[data-motion="full"]) .scroll .list {
+      gap: 0;
+    }
+
+    :global(:root[data-motion="full"]) .scroll .step {
+      padding: 8px 14px 12px 0;
+    }
+
+    :global(:root[data-motion="full"]) .scroll .stepLine {
+      margin-top: 3px;
+    }
+
+    :global(:root[data-motion="full"]) .scroll .stepBar {
+      bottom: 4px;
+    }
+  }
+
+  @media (max-height: 620px) {
+    :global(:root[data-motion="full"]) .scroll .stepTitle {
+      font-size: var(--step-0);
+    }
+
+    :global(:root[data-motion="full"]) .scroll .stepLine {
+      font-size: var(--step--2);
+      line-height: 1.4;
+    }
+  }
+}
+
+/* ---------- Cotes projetées ---------- */
+
+.dim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.dim > span {
+  display: block;
+  translate: -50% -50%;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  color: var(--txt-2);
+  white-space: nowrap;
+}
+
+/* Cote de hauteur : posée sur sa ligne et tournée, comme sur un plan. Fond
+   presque opaque pour masquer la ligne sous le texte. */
+.dimV > span {
+  rotate: -90deg;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+}
+
+@keyframes ring {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* Animations réduites (réglage du site ; préférence du système sans JavaScript). */
+:global(:root[data-motion="reduced"]) .finalDot::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(:root:not([data-motion])) .finalDot::after {
+    animation: none;
+  }
+}

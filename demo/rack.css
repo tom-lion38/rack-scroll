@@ -1,0 +1,985 @@
+/* Rack qui se monte au défilement : styles de la démo.
+   Sans JavaScript, ou avec les animations réduites, tout reste statique :
+   la piste et la scène collante n'existent qu'avec :root[data-motion="full"] et .is-scroll. */
+
+:root {
+  color-scheme: dark;
+  --bg: #04050a;
+  --surface: #0b0f1a;
+  --surface-top: #121828;
+  --line: rgba(237, 241, 248, 0.09);
+  --line-strong: rgba(237, 241, 248, 0.18);
+  --line-accent: rgba(47, 230, 200, 0.45);
+  --txt-1: #edf1f8;
+  --txt-2: #a6afc4;
+  --txt-3: #7c859c;
+  --accent: #2fe6c8;
+  --accent-glow: rgba(47, 230, 200, 0.55);
+  --ok: #4bd07f;
+  --warn: #ffc44d;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --header-h: 0px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --step--2: 0.82rem;
+  --step--1: 0.92rem;
+  --step-0: 1.05rem;
+  --step-1: 1.25rem;
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-5: 700ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --shadow-lg: 0 30px 80px -40px rgba(0, 0, 0, 0.85);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 17px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt-1);
+  font-family: var(--font);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+figure {
+  margin: 0;
+}
+
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Page de démonstration ---------- */
+
+.page {
+  width: min(1240px, 100% - 32px);
+  margin-inline: auto;
+}
+
+.page-head {
+  display: grid;
+  gap: 14px;
+  min-height: 78svh;
+  align-content: center;
+  padding-block: 48px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.page-head h1 {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.page-head p:not(.eyebrow) {
+  max-width: 60ch;
+  color: var(--txt-2);
+}
+
+.lead {
+  color: var(--txt-2);
+  max-width: 52ch;
+}
+
+.rack-intro h2 {
+  font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.toggle {
+  justify-self: start;
+  margin-top: 8px;
+  padding: 9px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--txt-1);
+  font: inherit;
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  border-color: var(--accent);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.page-end {
+  min-height: 70svh;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding-block: 64px;
+  color: var(--txt-2);
+}
+
+.page-end h2 {
+  color: var(--txt-1);
+  font-size: var(--step-1);
+}
+
+/* =========================================================================
+   Rack : mise en page statique (base)
+   ========================================================================= */
+
+.rack {
+  --frame: calc(100svh - var(--header-h));
+  --stage-max: 880px;
+  --k: 0;
+  --t-ok: color-mix(in srgb, var(--ok) 62%, var(--txt-1));
+  --t-accent: color-mix(in srgb, var(--accent) 78%, var(--txt-1));
+  container: rack / inline-size;
+  position: relative;
+  padding-block: 32px;
+}
+
+.rack-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "intro"
+    "stage"
+    "steps";
+  gap: var(--sp-6);
+}
+
+.rack-intro {
+  grid-area: intro;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.rack-track {
+  display: none;
+}
+
+.rack-frame {
+  display: contents;
+}
+
+@container rack (min-width: 860px) {
+  .rack-layout {
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "intro stage"
+      "steps stage";
+    column-gap: clamp(32px, 5cqi, 80px);
+    row-gap: var(--sp-6);
+    align-items: start;
+  }
+}
+
+.rack-skip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-top);
+  color: var(--txt-1);
+  font-size: var(--step--1);
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 -8px;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    translate var(--dur-2) var(--ease-out);
+}
+
+.rack-skip:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  translate: 0 0;
+}
+
+.rack-end {
+  display: block;
+  height: 0;
+  outline: none;
+}
+
+/* ---------- Scène ---------- */
+
+.rack-stage {
+  grid-area: stage;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: 16px 18px 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(70% 55% at 50% 48%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 72%),
+    radial-gradient(color-mix(in srgb, var(--txt-1) 7%, transparent) 1px, transparent 1.3px) 0 0 / 24px 24px,
+    color-mix(in srgb, var(--surface) 72%, var(--bg));
+  box-shadow: var(--shadow-lg);
+}
+
+.rack-scene {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Statique avec canvas : la scène a une forme fixe, le rack y est dessiné assemblé. */
+.rack.has-canvas .rack-scene {
+  aspect-ratio: 1 / 1.02;
+  max-height: min(64vh, 620px);
+  width: 100%;
+  margin-inline: auto;
+}
+
+.rack-corners {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rack-corners i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-style: solid;
+  border-width: 0;
+}
+
+.rack-corners i:nth-child(1) { left: -6px; top: -4px; border-left-width: 1px; border-top-width: 1px; }
+.rack-corners i:nth-child(2) { right: -6px; top: -4px; border-right-width: 1px; border-top-width: 1px; }
+.rack-corners i:nth-child(3) { left: -6px; bottom: -4px; border-left-width: 1px; border-bottom-width: 1px; }
+.rack-corners i:nth-child(4) { right: -6px; bottom: -4px; border-right-width: 1px; border-bottom-width: 1px; }
+
+.rack-canvas {
+  display: none;
+}
+
+.rack.has-canvas .rack-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.rack-dims {
+  display: none;
+}
+
+.rack.has-canvas .rack-dims {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rack-dim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.rack-dim > span {
+  display: block;
+  translate: -50% -50%;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  color: var(--txt-2);
+  white-space: nowrap;
+}
+
+/* Cote de hauteur : posée sur sa ligne et tournée, comme sur un plan. */
+.rack-dim-v > span {
+  rotate: -90deg;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+}
+
+/* ---------- Surcouches ---------- */
+
+.rack-hud {
+  order: -1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.rack-hud-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+
+.rack-hud-phase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  color: var(--txt-1);
+  letter-spacing: 0.08em;
+}
+
+.rack-hud-pct,
+.rack-hud-live {
+  display: none;
+}
+
+.rack-hud-pct {
+  color: var(--t-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rack-control {
+  flex: none;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--txt-1);
+  font: inherit;
+  font-size: var(--step--2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rack-control:hover {
+  border-color: var(--accent);
+}
+
+.rack-control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rack-caption {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.rack-final {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px 8px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 11%, color-mix(in srgb, var(--surface) 86%, transparent));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px -22px var(--ok);
+  font-size: var(--step--1);
+  font-weight: 620;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rack-final-dot {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ok) 70%, transparent);
+}
+
+.rack-final-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ok);
+  opacity: 0;
+}
+
+.rack-final-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--t-ok);
+}
+
+.rack-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  padding: 6px 14px 6px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--line-strong);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  font-size: var(--step--2);
+  line-height: 1.4;
+  color: var(--txt-2);
+}
+
+.rack-note-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--txt-3);
+}
+
+/* ---------- Légendes ---------- */
+
+.rack-steps {
+  grid-area: steps;
+  min-width: 0;
+}
+
+.rack-ticks {
+  display: none;
+}
+
+.rack-list {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 2px;
+}
+
+.rack-list::before {
+  content: "";
+  position: absolute;
+  left: 15.5px;
+  top: 30px;
+  bottom: 30px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.rack-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: start;
+  padding: 14px 14px 18px 0;
+}
+
+.rack-step::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 -12px;
+  z-index: -1;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 80%);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+
+.rack-step-num {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--txt-3);
+  transition:
+    border-color var(--dur-3) var(--ease-out),
+    color var(--dur-3) var(--ease-out),
+    background var(--dur-3) var(--ease-out),
+    box-shadow var(--dur-3) var(--ease-out);
+}
+
+.rack-step-body {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.rack-step-title {
+  font-size: var(--step-1);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  color: var(--txt-2);
+  transition: color var(--dur-3) var(--ease-out);
+}
+
+.rack-step-line {
+  margin-top: 6px;
+  max-width: 44ch;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--txt-3);
+  transition: color var(--dur-3) var(--ease-out);
+}
+
+.rack-step-u {
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+
+.rack-step-bar {
+  position: absolute;
+  left: 48px;
+  right: 14px;
+  bottom: 7px;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--line);
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+
+/* La barre de l'étape en cours ne change que par transform : rien à remettre en page. */
+.rack-step-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--k));
+}
+
+.rack-step[data-state="active"]::before,
+.rack-step[data-state="active"] .rack-step-bar {
+  opacity: 1;
+}
+
+.rack-step[data-state="active"] .rack-step-num {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  color: var(--t-accent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 0 22px -4px var(--accent-glow);
+}
+
+.rack-step[data-state="active"] .rack-step-title,
+.rack-step[data-state="done"] .rack-step-title {
+  color: var(--txt-1);
+}
+
+.rack-step[data-state="active"] .rack-step-line {
+  color: var(--txt-2);
+}
+
+.rack-step[data-state="active"] .rack-step-u {
+  border-color: var(--line-accent);
+  color: var(--t-accent);
+}
+
+.rack-step[data-state="done"] .rack-step-num {
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, var(--bg));
+  color: var(--t-ok);
+}
+
+/* =========================================================================
+   Mode défilement (animations activées et JavaScript présent)
+   ========================================================================= */
+
+/* ---------- Petits écrans : scène en haut, légende en cours dessous ---------- */
+
+:root[data-motion="full"] .rack.is-scroll .rack-layout {
+  grid-template-areas:
+    "intro"
+    "track";
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-track {
+  display: block;
+  grid-area: track;
+  height: 200svh;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-frame {
+  grid-area: track;
+  align-self: start;
+  position: sticky;
+  top: var(--header-h);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: var(--frame);
+  padding-block: 10px 12px;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-stage {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  padding: 0;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-scene {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  max-height: none;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-corners {
+  inset: 10px;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-corners i:nth-child(1) { left: 0; top: 0; }
+:root[data-motion="full"] .rack.is-scroll .rack-corners i:nth-child(2) { right: 0; top: 0; }
+:root[data-motion="full"] .rack.is-scroll .rack-corners i:nth-child(3) { left: 0; bottom: 0; }
+:root[data-motion="full"] .rack.is-scroll .rack-corners i:nth-child(4) { right: 0; bottom: 0; }
+
+:root[data-motion="full"] .rack.is-scroll .rack-hud-pct,
+:root[data-motion="full"] .rack.is-scroll .rack-hud-live {
+  display: inline;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-hud-still {
+  display: none;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-hud {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 14px;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-caption {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-final {
+  opacity: 0;
+  transform: translateY(10px) scale(0.94);
+  transition:
+    opacity 520ms var(--ease-out),
+    transform 700ms var(--ease-spring);
+}
+
+:root[data-motion="full"] .rack.is-scroll[data-final] .rack-final {
+  opacity: 1;
+  transform: none;
+}
+
+:root[data-motion="full"] .rack.is-scroll[data-final] .rack-final-dot::after {
+  animation: rack-ring 2.4s var(--ease-out) infinite;
+}
+
+:root[data-motion="full"] .rack.is-scroll[data-paused] .rack-final-dot::after {
+  animation-play-state: paused;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-steps {
+  flex: none;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-ticks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-ticks i {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line-strong);
+  transition: background var(--dur-3) var(--ease-out);
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-ticks i[data-state="done"] {
+  background: color-mix(in srgb, var(--ok) 75%, transparent);
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-ticks i[data-state="active"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--k));
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-list {
+  display: grid;
+  gap: 0;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-list::before,
+:root[data-motion="full"] .rack.is-scroll .rack-step::before,
+:root[data-motion="full"] .rack.is-scroll .rack-step-bar {
+  display: none;
+}
+
+/* Toutes les légendes sont empilées dans la même case : une seule est visible à la fois. */
+:root[data-motion="full"] .rack.is-scroll .rack-step {
+  grid-area: 1 / 1;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+/* La légende sortante s'efface vite, l'entrante arrive juste après. */
+:root[data-motion="full"] .rack.is-scroll .rack-step[data-shown] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 420ms var(--ease-out) 140ms,
+    transform 560ms var(--ease-out) 140ms;
+}
+
+:root[data-motion="full"] .rack.is-scroll .rack-step-num {
+  width: 28px;
+  height: 28px;
+}
+
+/* Téléphone à l'horizontale : scène et légende côte à côte. */
+@media (orientation: landscape) and (max-height: 560px) {
+  :root[data-motion="full"] .rack.is-scroll .rack-frame {
+    flex-direction: row;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-stage {
+    flex: 1.25 1 0;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-steps {
+    flex: 1 1 0;
+    align-self: center;
+  }
+}
+
+/* ---------- Grands écrans : légendes à gauche, scène collante à droite ---------- */
+
+@container rack (min-width: 860px) {
+  :root[data-motion="full"] .rack.is-scroll .rack-layout {
+    grid-template-columns: minmax(0, 0.74fr) minmax(0, 1.26fr);
+    grid-template-rows: auto minmax(200svh, 1fr);
+    grid-template-areas:
+      "intro track"
+      "steps track";
+    row-gap: 0;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-intro {
+    padding-top: 12px;
+    padding-bottom: var(--sp-4);
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-track {
+    align-self: stretch;
+    height: auto;
+    min-height: 260svh;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-frame {
+    display: contents;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-stage {
+    --stage-h: min(calc(var(--frame) - 24px), var(--stage-max), 66cqi);
+    grid-area: track;
+    align-self: start;
+    position: sticky;
+    top: calc(var(--header-h) + (var(--frame) - var(--stage-h)) / 2);
+    height: var(--stage-h);
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-steps {
+    grid-area: steps;
+    align-self: start;
+    position: sticky;
+    top: var(--header-h);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--frame);
+    padding: 24px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-ticks {
+    display: none;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-list {
+    gap: 2px;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-list::before,
+  :root[data-motion="full"] .rack.is-scroll .rack-step::before,
+  :root[data-motion="full"] .rack.is-scroll .rack-step-bar {
+    display: block;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-step {
+    grid-area: auto;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 16px;
+    padding: 14px 14px 18px 0;
+    opacity: 1;
+    transform: none;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-step-num {
+    width: 32px;
+    height: 32px;
+  }
+
+  :root[data-motion="full"] .rack.is-scroll .rack-step[data-state="todo"] .rack-step-title {
+    color: var(--txt-3);
+  }
+}
+
+/* ---------- Progression imposée par ?p= (captures) : pas de piste, scène à l'écran ---------- */
+
+:root.force .page-head,
+:root.force .page-end,
+:root.force .rack-track {
+  display: none !important;
+}
+
+:root.force .rack {
+  padding-block: 0;
+}
+
+:root.force .rack-layout {
+  grid-template-rows: auto !important;
+}
+
+:root.force .rack-frame {
+  position: relative !important;
+}
+
+:root.force .rack-stage,
+:root.force .rack-steps {
+  position: relative !important;
+  top: 0 !important;
+}
+
+@keyframes rack-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* Animations réduites : plus rien ne bouge tout seul. */
+:root[data-motion="reduced"] .rack-final-dot::after {
+  animation: none;
+}
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  transition-duration: 0.01ms !important;
+}
